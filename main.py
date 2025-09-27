@@ -11,6 +11,7 @@ import joblib
 from ml_optimizer.feature_extraction import extract_features
 from ml_optimizer.train_model import train_model_function  # optional
 from cost_comparator import CostComparator  # Import our new cost comparator
+from query_explainer import QueryExplainer  # Import query difference explainer
 
 def count_joins(query):
     return query.lower().count(' join')
@@ -93,6 +94,39 @@ def main():
     print("\n--- BEST OPTIMIZED QUERY ---")
     print(best_query)
     print(f"\nCandidate evaluation runtime: {candidate_runtime:.3f} seconds")
+
+    # 🔍 QUERY DIFFERENCE EXPLANATION
+    if best_query != original_query:
+        print("\n" + "="*60)
+        print("🔍 DETAILED OPTIMIZATION EXPLANATION")
+        print("="*60)
+        
+        explainer = QueryExplainer()
+        performance_info = ""
+        if original_cost and best_cost < original_cost:
+            improvement_pct = ((original_cost - best_cost) / original_cost) * 100
+            performance_info = f"{improvement_pct:.1f}% performance improvement"
+        
+        explanation = explainer.explain_differences(
+            original_query, 
+            best_query, 
+            best_name if 'best_name' in locals() else "optimization",
+            performance_info
+        )
+        
+        # Format and display the explanation with proper line breaks
+        print()  # Add spacing
+        for line in explanation.split('\n'):
+            if line.strip():  # Only print non-empty lines
+                print(line)
+            elif explanation.split('\n').index(line) > 0:  # Add spacing between sections
+                print()
+        
+        print("\n" + "="*60)
+        print("--- QUERY DIFF (LINE BY LINE) ---")
+        diff_output = explainer.show_side_by_side_diff(original_query, best_query)
+        print(diff_output)
+        print("="*60)
 
     # 3️⃣ EXPLAIN JSON for best query
     explain_json = run_explain(best_query)
